@@ -17,6 +17,9 @@ Put the table of results in the comment.
 #include <thread>
 #include <chrono>
 #include <cmath>
+#include <atomic>
+#include <vector>
+#include <algorithm>
 using namespace std;
 
 // example n = 1000000001
@@ -64,17 +67,58 @@ void countPrimesMultithreaded2(uint64_t a, uint64_t b, uint64_t* pcount) {
     *pcount = count;
 }
 
+
+atomic<uint64_t> nextChunk(0);
+
+// each pool thread runs this: keeps grabbing chunks until none are left
+void worker(uint64_t n, uint64_t chunkSize, uint64_t numChunks,
+            vector<uint64_t>& counts) {
+    uint64_t c;
+    while ((c = nextChunk++) < numChunks) {
+        uint64_t a = 2 + c * chunkSize;
+        uint64_t b = min(a + chunkSize - 1, n);
+        countPrimesMultithreaded2(a, b, &counts[c]);
+    }
+}
+
+
 int main(int argc, char* argv[]) {
+      if (argc < 2) {
+        cerr << "Usage: " << argv[0] << " <n>\n";
+        return 1;
+    }
     uint64_t n = atol(argv[1]);
     uint64_t chunkSize = 1024*1024;
-    uint64_t current = 2;
-//    std::cout << countPrimes(n) << '\n';
-    uint64_t count1 = 0, count2 = 0;
-    thread t1(countPrimesMultithreaded2, 2, n/2, &count1);
-    thread t2(countPrimesMultithreaded2, n/2+1, n, &count2);
-    t1.join();
-    t2.join();
-    uint64_t count = count1 + count2;
+
+//     uint64_t n = atol(argv[1]);
+//     uint64_t chunkSize = 1024*1024;
+//     uint64_t current = 2;
+// //    std::cout << countPrimes(n) << '\n';
+//     uint64_t count1 = 0, count2 = 0;
+//     thread t1(countPrimesMultithreaded2, 2, n/2, &count1);
+//     thread t2(countPrimesMultithreaded2, n/2+1, n, &count2);
+//     t1.join();
+//     t2.join();
+//     uint64_t count = count1 + count2;
+//     cout << count << '\n';
+
+    uint64_t numChunks = (n - 1) / chunkSize + 1;
+    int numThreads = 2; // bump to 4 for the optional benchmark
+
+    vector<uint64_t> counts(numChunks, 0);
+    vector<thread> threads;
+
+    nextChunk = 0; // reset the shared counter before launching this run
+    for (int i = 0; i < numThreads; i++)
+        threads.emplace_back(worker, n, chunkSize, numChunks, ref(counts));
+
+    for (auto& t : threads)
+        t.join();
+
+    uint64_t count = 0;
+    for (auto c : counts)
+        count += c;
+
     cout << count << '\n';
 
 }
