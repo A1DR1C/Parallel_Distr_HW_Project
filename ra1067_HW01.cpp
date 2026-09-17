@@ -83,15 +83,8 @@ void worker(uint64_t n, uint64_t chunkSize, uint64_t numChunks,
 
 
 int main(int argc, char* argv[]) {
-      if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <n>\n";
-        return 1;
-    }
     uint64_t n = atol(argv[1]);
     uint64_t chunkSize = 1024*1024;
-
-//     uint64_t n = atol(argv[1]);
-//     uint64_t chunkSize = 1024*1024;
 //     uint64_t current = 2;
 // //    std::cout << countPrimes(n) << '\n';
 //     uint64_t count1 = 0, count2 = 0;
@@ -103,12 +96,12 @@ int main(int argc, char* argv[]) {
 //     cout << count << '\n';
 
     uint64_t numChunks = (n - 1) / chunkSize + 1;
-    int numThreads = 2; // bump to 4 for the optional benchmark
+    int numThreads = 2;
 
     vector<uint64_t> counts(numChunks, 0);
     vector<thread> threads;
 
-    nextChunk = 0; // reset the shared counter before launching this run
+    nextChunk = 0;
     for (int i = 0; i < numThreads; i++)
         threads.emplace_back(worker, n, chunkSize, numChunks, ref(counts));
 
